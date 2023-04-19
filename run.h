@@ -4,10 +4,11 @@
  */
 
 void   run(NODE *tokenlist);
-int    getNumericExpr ();
-int    getNumericValue();
-enum TOKENDEF getTokenValue();
-void   doPrint();
-int    doRnd();
-void   doIf();
-void   doGoto(NODE *tokenlist);
+/* int    getNumericExpr ();
+static int    getNumericValue();
+static enum TOKENDEF getTokenValue();
+static void   doPrint();
+static int    doRnd();
+static void   doIf();
+static void   doGoto(NODE *tokenlist);
+*/

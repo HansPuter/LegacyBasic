@@ -39,7 +39,7 @@ int main (int argc, char *argv[])
         printf("%s", line);
 
         ++lineno;
-        if (!tokenize(tokenlist, line, lineno))
+        if (!tokenize(&tokenlist, line, lineno))
         {
             //fclose(fin), fin=NULL;
             break;
@@ -78,8 +78,10 @@ void dumplist(NODE *root)
             case CLOSEBRACKET: printf(") "); break;
             case COMMA: printf(", "); break;
             case COLON: printf(": "); break;
+            case SEMICOLON: printf("; "); break;
             case LINENO: printf("\nLNO(%d) ", scan->token->data.no); break;
             case NUMBER: printf("INT(%d) ", scan->token->data.no); break;
+            case FLOATNUM: printf("FNO(%f) ", scan->token->data.fno); break;
             case STRING: printf("STR(%s) ", scan->token->data.str); break;
             case VARIABLE: printf("VAR(%c) ", scan->token->data.no + 'A'); break;
             case PRINT: printf("PRINT "); break;

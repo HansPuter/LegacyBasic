@@ -8,10 +8,10 @@ TARGET  = lbasic
 all: lbasic
 
 lbasic: $(HEADERS) $(SOURCES)
-	gcc -Wall -O2 $(SOURCES) -o $(TARGET)
+	gcc -Wall -ggdb $(SOURCES) -o $(TARGET) -lm
 
-debug:
-	gcc -Wall -ggdb $(SOURCES) -o $(TARGET)
+release:
+	gcc -Wall -O2 $(SOURCES) -o $(TARGET) -lm
 
 clean:
 	rm -f $(TARGET)

@@ -7,35 +7,36 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 #include "token.h"
 #include "list.h"
 #include "tokenizer.h"
 
-int tokenize (NODE *tokenlist, char *line, int lineno)
+int tokenize (NODE **tokenlist, char *line, int lineno)
 {
     char *s = line;
-    
+
     TOKEN *t = getNextToken(&s, lineno);
     if (!t)
         return 0;
         
     if (t->type == NUMBER)
         t->type = LINENO;
-    addtoken (&tokenlist, t);
+    addtoken (tokenlist, t);
     
     while ((t = getNextToken(&s, lineno)))
     {
         if (t->type == REM)
             break;
 
-        addtoken (&tokenlist, t);
+        addtoken (tokenlist, t);
     }
     
     return 1;
 }
 
-const char *delimiters = "+-*/><=(),:";
+const char *delimiters = "+-*/><=(),:;";
 
 /*
  * Scan for next token
@@ -47,13 +48,19 @@ TOKEN *getNextToken (char **pos, int lineno)
         ++s;
     
     if (*s) {
-        if (isdigit(*s) || (*s == '-' && isdigit(*(s+1)))) {
+        // NUMBER or FLOAT
+        if (isdigit(*s) || (*s == '-' && isdigit(*(s+1))) || (*s == '+' && isdigit(*(s+1)))) {
+            TOKEN *token = NULL;
             int minus = 1;
             if (*s == '-') {
                 minus = -1;
                 ++s;
             }
             
+            if (*s == '+') {
+                ++s;
+            }
+
             int no = *s - '0';
             char *t = s + 1;
             while (isdigit(*t)) {
@@ -62,14 +69,68 @@ TOKEN *getNextToken (char **pos, int lineno)
                 ++t;
             }
             
-            if (isalpha(*t)) {
-                printf("error: invalid number in line %d\n", lineno);
-                exit(1);
+            if (*t == '.' || toupper(*t) == 'E') {
+                float fno = (float)no;
+                if (*t == '.') {
+                    t++;
+                    no = 10;
+                    while (isdigit(*t)) {
+                        fno += (float)(*t - '0')/(float)no;
+                        no *= 10;
+                        ++t;
+                    }
+                }
+
+                if (toupper(*t) == 'E') {
+                    int signExp = 0;
+                    ++t;
+                    if (*t == '-') {
+                        signExp = -1;
+                        ++t;
+                    }
+                    
+                    if (*t == '+') {
+                        ++t;
+                    }
+
+                    if (!isdigit(*t)) {
+                        printf("error: invalid number in line %d\n", lineno);
+                        exit(1);
+                    }
+
+                    no = 10;
+                    int exp = 0;
+                    while (isdigit(*t)) {
+                        exp *= 10;
+                        exp += *t - '0';
+                        ++t;
+                    }
+                    no = pow(10, exp);
+                    if (signExp < 0) {
+                        fno /= (float)no;
+                    } else {
+                        fno *= (float)no;
+                    }
+
+                }
+                        
+                token = (TOKEN*)malloc(sizeof(TOKEN));
+                token->type = FLOATNUM;
+                if (minus < 0)
+                    fno = -fno;
+                token->data.fno = fno;
+                
+            } else {
+                if (isalpha(*t)) {
+                    printf("error: invalid number in line %d\n", lineno);
+                    exit(1);
+                }
+                
+                token = (TOKEN*)malloc(sizeof(TOKEN));
+                token->type = NUMBER;
+                token->data.no = no * minus;
             }
-            
-            TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));
-            token->type = NUMBER;
-            token->data.no = no * minus;
+
             *pos = t;
             return token;
         }
@@ -130,6 +191,8 @@ TOKEN *getNextToken (char **pos, int lineno)
                     token->type = COMMA; break;
                 case ':':
                     token->type = COLON; break;
+                case ';':
+                    token->type = SEMICOLON; break;
                 default:
                     free(token); return NULL;
             }

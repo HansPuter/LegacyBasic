@@ -7,7 +7,8 @@ typedef struct
     enum TOKENDEF type;
     union
     {
-        int  no;
+        int   no;
+        float fno;
         char *str;
     } data;
 } TOKEN;
