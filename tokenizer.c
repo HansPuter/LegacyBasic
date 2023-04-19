@@ -1,0 +1,197 @@
+/*
+ * Tokenize source lines
+ * (c) 2023 by Hans-Peter Rampp - LGPL 2
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#include "token.h"
+#include "list.h"
+#include "tokenizer.h"
+
+int tokenize (NODE *tokenlist, char *line, int lineno)
+{
+    char *s = line;
+    
+    TOKEN *t = getNextToken(&s, lineno);
+    if (!t)
+        return 0;
+        
+    if (t->type == NUMBER)
+        t->type = LINENO;
+    addtoken (&tokenlist, t);
+    
+    while ((t = getNextToken(&s, lineno)))
+    {
+        if (t->type == REM)
+            break;
+
+        addtoken (&tokenlist, t);
+    }
+    
+    return 1;
+}
+
+const char *delimiters = "+-*/><=(),:";
+
+/*
+ * Scan for next token
+ */
+TOKEN *getNextToken (char **pos, int lineno)
+{
+    char *s = *pos;
+    while (isspace(*s))
+        ++s;
+    
+    if (*s) {
+        if (isdigit(*s) || (*s == '-' && isdigit(*(s+1)))) {
+            int minus = 1;
+            if (*s == '-') {
+                minus = -1;
+                ++s;
+            }
+            
+            int no = *s - '0';
+            char *t = s + 1;
+            while (isdigit(*t)) {
+                no *= 10;
+                no += *t - '0';
+                ++t;
+            }
+            
+            if (isalpha(*t)) {
+                printf("error: invalid number in line %d\n", lineno);
+                exit(1);
+            }
+            
+            TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));
+            token->type = NUMBER;
+            token->data.no = no * minus;
+            *pos = t;
+            return token;
+        }
+        
+        if (*s == '"') {
+            char str[1024];
+            int  idx=0;
+            char *t = s + 1;
+            for ( ; *t != 0; ++t) {
+                if (*t == '"') {
+                    if  (*(t+1) == '"') {
+                        str[idx++] = *t;
+                        ++t;
+                    }
+                    else {
+                        str[idx++] = 0;
+                        ++t;
+                        break;
+                    }
+                    
+                    continue;
+                }
+
+                str[idx++] = *t;
+            }
+            
+            TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));
+            token->type = STRING;
+            token->data.str = strdup(str);
+            *pos = t;
+            return token;
+        }
+        
+        if (strchr(delimiters, *s)) {
+            TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));
+            token->data.no = 0;
+
+            switch (*s) {
+                case '+':
+                    token->type = ADD; break;
+                case '-':
+                    token->type = SUB; break;
+                case '*':
+                    token->type = MUL; break;
+                case '/':
+                    token->type = DIV; break;
+                case '<':
+                    token->type = SMALLER; break;
+                case '>':
+                    token->type = GREATER; break;
+                case '=':
+                    token->type = EQUALS; break;
+                case '(':
+                    token->type = OPENBRACKET; break;
+                case ')':
+                    token->type = CLOSEBRACKET; break;
+                case ',':
+                    token->type = COMMA; break;
+                case ':':
+                    token->type = COLON; break;
+                default:
+                    free(token); return NULL;
+            }
+            *pos = s+1;
+            return token;
+        }
+        
+        if (isalpha(*s)) {
+            char keyword[16];
+            int  idx=0;
+            char *t = s;
+            while (isalpha(*t)) {
+                keyword[idx++] = islower(*t) ? toupper(*t) : *t;
+                ++t;
+            }
+            keyword[idx] = 0;
+            
+            size_t len = strlen(keyword);
+            if (len == 1) {
+                TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));
+                token->type = VARIABLE;
+                token->data.no = (islower(*s) ? toupper(*s) : *s) - 'A';
+                *pos = t;
+                return token;
+            }
+            
+            TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));
+            if (!strcmp(keyword, "PRINT")) 
+                token->type = PRINT;
+            else if (!strcmp(keyword, "IF")) 
+                token->type = IF;
+            else if (!strcmp(keyword, "THEN")) 
+                token->type = THEN;
+            else if (!strcmp(keyword, "GOTO")) 
+                token->type = GOTO;
+            else if (!strcmp(keyword, "INPUT")) 
+                token->type = INPUT;
+            else if (!strcmp(keyword, "LET")) 
+                token->type = LET;
+            else if (!strcmp(keyword, "GOSUB")) 
+                token->type = GOSUB;
+            else if (!strcmp(keyword, "RETURN")) 
+                token->type = RETURN;
+            else if (!strcmp(keyword, "CLEAR")) 
+                token->type = CLEAR;
+            else if (!strcmp(keyword, "END")) 
+                token->type = END;
+            else if (!strcmp(keyword, "REM")) 
+                token->type = REM;
+            else if (!strcmp(keyword, "RND")) {
+                token->type = RND;
+                token->data.no = NUMFUNC;
+            }
+            else {
+                printf("error: unknown token: %s at line %d\n", keyword, lineno);
+                exit(1);
+            }
+            
+            *pos = t;
+            return token;
+        }
+    }
+    
+    return NULL;
+}

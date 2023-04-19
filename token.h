@@ -1,3 +1,7 @@
+/* Token definitions
+ * (c) 2023 by Hans-Peter Rampp - LGPL 2
+*/
+
 /*********************************************
 "+"      { return ADD; }
 "-"      { return SUB; }

@@ -1,8 +1,8 @@
 #
 #
 
-HEADERS = list.h token.h 
-SOURCES = lbasic.c
+HEADERS = list.h token.h tokenizer.h list.h run.h
+SOURCES = lbasic.c tokenizer.c list.c run.c
 TARGET  = lbasic
 
 all: lbasic
