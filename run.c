@@ -17,14 +17,31 @@ static float getNumericValue();
 
 static NODE *scan = NULL;
 static int   vars[26];
+static char *svars[26]; 
 static int   lineno;
 
-static void nextToken() 
+static TOKEN *nextToken() 
 {
     if ((scan = scan->next) == NULL) {
         printf("\nEnd of programm w/o END at line %d\n", lineno);
         exit(0);
     }
+
+    return scan->token;
+}
+
+static enum TOKENDEF peekToken()
+{
+    if (scan->next == NULL) 
+        return END;
+
+    return scan->next->token->type;
+}
+
+static void errorMsg (const char *msg)
+{
+    printf("Error: %s at line %d\n", msg, lineno);
+    exit(1);
 }
 
 static enum TOKENDEF getTokenValue()
@@ -40,8 +57,8 @@ static enum TOKENDEF getTokenValue()
             break;
             
         default:
-            printf("Error: expecting operator at line: %d ", lineno);
-            exit(1);
+            errorMsg("expecting operator");
+            break;;
     }
         
     nextToken();
@@ -62,7 +79,7 @@ static float getNumericExpr ()
         return getNumericExpr();
     }
 */    
-   
+
     while (scan->token->type == ADD || scan->token->type == SUB || scan->token->type == MUL ||
              scan->token->type == DIV) {
         tok = getTokenValue();
@@ -77,6 +94,7 @@ static float getNumericExpr ()
                 result *= val; break;
             case DIV:
                 result /= val; break;
+            case CLOSEBRACKET:
             default:
                 break;
         }
@@ -88,15 +106,17 @@ static float getNumericExpr ()
 static float doRnd()
 {
     if (scan->token->type != OPENBRACKET) {
-        printf("Error: open bracket expected at line: %d ", lineno);
-        exit(1);
+        errorMsg("open bracket expected");
     }
-    nextToken();
     
-    float retVal = ((long)rand() * (long)getNumericExpr()) / RAND_MAX;
+    TOKEN *tok = nextToken();
+    if (tok->data.no != 1)
+        errorMsg("only 1 as parameter for RND implemented!");
+    tok = nextToken();
+    if (tok->type != CLOSEBRACKET)
+        errorMsg("closing bracket expected after RND");
 
-    while (scan && scan->token->type != CLOSEBRACKET) 
-        nextToken();
+    float retVal = (double)rand() / (double)((unsigned)RAND_MAX + 1);
 
     return retVal;
 }
@@ -106,11 +126,19 @@ static float getNumericValue()
     float retVal = 0;
     
     switch (scan->token->type) {
+        case SUB:
+            nextToken();
+            retVal = getNumericValue() * -1; 
+            break;
+        case ADD:
+            nextToken();
+            retVal = getNumericValue(); 
+            break;
         case NUMBER:
             retVal = scan->token->data.no; break;
         case FLOATNUM:
             retVal = scan->token->data.fno; break;
-        case VARIABLE:
+        case NUMVAR:
             retVal = vars[scan->token->data.no]; break;
         case OPENBRACKET:
             nextToken();
@@ -118,68 +146,94 @@ static float getNumericValue()
         case RND:
             nextToken();
             retVal = doRnd(); break;
+        case INT: {
+            TOKEN *tok = nextToken();
+            if (tok->type != OPENBRACKET)
+                errorMsg("expecting opening bracket after INT");
+
+            nextToken();
+            retVal = getNumericExpr();
+            break;;
+        }
         default:
-            printf("Error: invalid value or expression at line: %d ", lineno);
-            exit(1);
+            errorMsg("invalid value or expression");
+            break;;
     }
-        
+
     nextToken();
     return retVal;
 }
 
 static void doPrint()
 {
+    int pos =1;         // screen pos 
+    enum TOKENDEF lastTok = NONE;
+    
     nextToken();
     while (scan->token->type != COLON && scan->token->type != LINENO) { 
+        lastTok = scan->token->type;
+
         switch(scan->token->type) {
             case STRING:            
-                printf("%s", scan->token->data.str);
+                pos += printf("%s", scan->token->data.str);
+                nextToken();
                 break;
+
             case COMMA:
+                while (pos % 14) {
+                    printf("%c", ' ');
+                    ++pos;
+                }
+                nextToken();
                 break;
+
             case SEMICOLON:
+                nextToken();
                 break;
-            default:
-                printf("%f", getNumericExpr());
+
+            case TAB: {
+                TOKEN *tok = nextToken();
+                if (tok->type != OPENBRACKET)
+                    errorMsg("expecting opening bracket after TAB");
+
+                tok = nextToken();
+                if (tok->type != NUMBER)
+                    errorMsg("expecting number after TAB");
+
+                int tabs = tok->data.no;
+
+                tok = nextToken();
+                if (tok->type != CLOSEBRACKET)
+                    errorMsg("expecting closing bracket after TAB number");
+
+                while (pos <= tabs) {
+                    printf("%c", ' ');
+                    ++pos;
+                    }
+                }
+
+                nextToken();
+                break;
+
+            default: {
+                float f = getNumericExpr();
+                if (f == (int)f)
+                    pos += printf("% .0f", f);
+                else
+                    pos += printf("% f", f);
+                }
                 break;
         }
- 
-        nextToken();
     }
 
-    printf("\n");
-}
-
-static void doIf()
-{
-    nextToken();
-    int expr1 = getNumericExpr();    
-
-    enum TOKENDEF tok = scan->token->type;
-    if (tok != GREATER && tok != SMALLER && tok != EQUALS) {
-        printf("Error: operator expected at line: %d ", lineno);
-        exit(1);
-    }
-
-    nextToken();
-    int expr2 = getNumericExpr();    
-    
-    if (scan->token->type != THEN && scan->token->type != GOTO) {
-        printf("Error: THEN expected at line: %d ", lineno);
-        exit(1);
-    }
-    
-    nextToken();
-    if ((tok == GREATER && expr1 < expr2) || (tok == SMALLER && expr1 > expr2) || (tok == EQUALS && expr1 != expr2)) {
-        while (scan && scan->token->type != LINENO)
-            nextToken();
-    }
+    if (lastTok != SEMICOLON)
+        printf("\n");
 }
 
 static void doGoto(NODE *tokenlist)
 {
     nextToken();
-    int line = getNumericExpr();    
+    int line = scan->token->data.no;    
 
     NODE *n = tokenlist;
     while (n) {
@@ -190,8 +244,65 @@ static void doGoto(NODE *tokenlist)
         n = n->next;
     }
     
-    printf("Error: goto destination not found at line: %d ", lineno);
-    exit(1);
+    errorMsg("GOTO destination not found");
+}
+
+static void doIf(NODE *tokenlist)
+{
+    nextToken();
+    int expr1 = getNumericExpr();    
+
+    enum TOKENDEF tok = scan->token->type;
+    if (tok != GREATER && tok != SMALLER && tok != GREATEREQUAL && tok != SMALLEREQUAL && tok != EQUAL && tok != NOTEQUAL) {
+        errorMsg("operator expected");
+    }
+
+    nextToken();
+    int expr2 = getNumericExpr();    
+    
+    if (scan->token->type != THEN && scan->token->type != GOTO) {
+        errorMsg("THEN expected");
+    }
+    
+    if ((tok == GREATER && expr1 > expr2) || (tok == SMALLER && expr1 < expr2) || (tok == EQUAL && expr1 == expr2)
+            || (tok == GREATEREQUAL && expr1 >= expr2) || (tok == SMALLEREQUAL && expr1 <= expr2) || (tok == NOTEQUAL && expr1 != expr2)) {
+        if (peekToken() == NUMBER) {
+            doGoto(tokenlist);
+        } else
+            nextToken();
+
+        return;
+    }
+
+    while (scan && scan->token->type != LINENO)
+        nextToken();
+}
+
+static void doInput()
+{
+    TOKEN *tok = nextToken();
+    if (tok->type == STRING) {
+        char *s = tok->data.str;
+        if (nextToken()->type != SEMICOLON)
+            errorMsg("semicolon expected after INPUT string");
+
+        printf("%s? ", s);
+    }
+
+    if (peekToken() != NUMVAR)
+        errorMsg("variable name expected after INPUT");
+
+    tok = nextToken();
+    while (tok->type == NUMVAR) { 
+        char *line = NULL;
+        size_t len = 0;
+        getline(&line, &len, stdin);
+
+        vars[tok->data.no] = atoi(line);
+        free(line);
+
+        tok = nextToken();
+    }
 }
 
 void run(NODE *tokenlist)
@@ -204,25 +315,36 @@ void run(NODE *tokenlist)
         return;
         
     memset(vars, 0, sizeof(vars));
+    for (int i=0; i < 26; ++i)
+        svars[i] = "";
 
     do {
         switch (scan->token->type) {
             case LINENO: 
+                /*if (lineno >= scan->token->data.no) {
+                   errorMsg("line number not increasing");
+                }
+                */
+
                 lineno = scan->token->data.no;
                 nextToken();
                 break;
             
+            case COLON:
+                nextToken();
+                break;
+
             case LET:
                 nextToken();
-                if (scan->token->type != VARIABLE) {
-                    printf("Error: variable expected at line: %d ", lineno); 
+                if (scan->token->type != NUMVAR) {
+                    errorMsg("variable expected");
                 }
-            case VARIABLE:
+            case NUMVAR:
                 var = scan->token->data.no;
                 
                 nextToken();
-                if (scan->token->type != EQUALS) {
-                    printf("Error: assignment expected at line: %d ", lineno); 
+                if (scan->token->type != EQUAL) {
+                    errorMsg("assignment expected");
                 }
                 
                 nextToken();
@@ -234,19 +356,23 @@ void run(NODE *tokenlist)
                 break;
 
             case IF:
-                doIf();
+                doIf(tokenlist);
                 break;
                 
             case GOTO:
                 doGoto(tokenlist);
                 break;
             
+            case INPUT:
+                doInput();
+                break;
+
             case END:
                 exit(0);
                 
             default: 
-                printf("Unknown token: %d at %d", scan->token->type, lineno); 
-                exit(1);
+                errorMsg("Unexpected character/command");
+                break;;
         }
     } while (scan);
 }

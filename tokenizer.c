@@ -23,6 +23,10 @@ int tokenize (NODE **tokenlist, char *line, int lineno)
         
     if (t->type == NUMBER)
         t->type = LINENO;
+    else {
+        printf("Error: line doesn't start with a number!");
+        exit(1);
+    }
     addtoken (tokenlist, t);
     
     while ((t = getNextToken(&s, lineno)))
@@ -49,7 +53,7 @@ TOKEN *getNextToken (char **pos, int lineno)
     
     if (*s) {
         // NUMBER or FLOAT
-        if (isdigit(*s) || (*s == '-' && isdigit(*(s+1))) || (*s == '+' && isdigit(*(s+1)))) {
+        if (isdigit(*s) /* || (*s == '-' && isdigit(*(s+1))) || (*s == '+' && isdigit(*(s+1))) */ ) {
             TOKEN *token = NULL;
             int minus = 1;
             if (*s == '-') {
@@ -178,11 +182,25 @@ TOKEN *getNextToken (char **pos, int lineno)
                 case '/':
                     token->type = DIV; break;
                 case '<':
-                    token->type = SMALLER; break;
+                    if (*(s+1) == '=') {
+                        token->type = SMALLEREQUAL;
+                        *pos = ++s; 
+                    } else if (*(s+1) == '>') {
+                        token->type = NOTEQUAL;
+                        *pos = ++s;     
+                    } else
+                        token->type = SMALLER; 
+                    
+                    break;
                 case '>':
-                    token->type = GREATER; break;
+                    if (*(s+1) == '=') {
+                        token->type = GREATEREQUAL;
+                        *pos = ++s;    
+                    } else
+                        token->type = GREATER; 
+                    break;
                 case '=':
-                    token->type = EQUALS; break;
+                    token->type = EQUAL; break;
                 case '(':
                     token->type = OPENBRACKET; break;
                 case ')':
@@ -213,7 +231,7 @@ TOKEN *getNextToken (char **pos, int lineno)
             size_t len = strlen(keyword);
             if (len == 1) {
                 TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));
-                token->type = VARIABLE;
+                token->type = NUMVAR;
                 token->data.no = (islower(*s) ? toupper(*s) : *s) - 'A';
                 *pos = t;
                 return token;
@@ -228,16 +246,18 @@ TOKEN *getNextToken (char **pos, int lineno)
                 token->type = THEN;
             else if (!strcmp(keyword, "GOTO")) 
                 token->type = GOTO;
+            else if (!strcmp(keyword, "TAB"))
+                token->type = TAB;
             else if (!strcmp(keyword, "INPUT")) 
                 token->type = INPUT;
             else if (!strcmp(keyword, "LET")) 
                 token->type = LET;
-            else if (!strcmp(keyword, "GOSUB")) 
-                token->type = GOSUB;
-            else if (!strcmp(keyword, "RETURN")) 
-                token->type = RETURN;
-            else if (!strcmp(keyword, "CLEAR")) 
-                token->type = CLEAR;
+            //else if (!strcmp(keyword, "GOSUB")) 
+            //    token->type = GOSUB;
+            //else if (!strcmp(keyword, "RETURN")) 
+            //    token->type = RETURN;
+            //else if (!strcmp(keyword, "CLEAR")) 
+            //    token->type = CLEAR;
             else if (!strcmp(keyword, "END")) 
                 token->type = END;
             else if (!strcmp(keyword, "REM")) 
@@ -246,6 +266,8 @@ TOKEN *getNextToken (char **pos, int lineno)
                 token->type = RND;
                 token->data.no = NUMFUNC;
             }
+            else if (!strcmp(keyword, "INT"))
+                token->type = INT;
             else {
                 printf("error: unknown token: %s at line %d\n", keyword, lineno);
                 exit(1);

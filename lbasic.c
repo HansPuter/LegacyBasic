@@ -72,18 +72,21 @@ void dumplist(NODE *root)
             case MUL: printf("* "); break;
             case DIV: printf("/ "); break; 
             case GREATER: printf("> "); break;
+            case GREATEREQUAL: printf(">= "); break;
             case SMALLER: printf("< "); break;
-            case EQUALS: printf("= "); break; 
+            case SMALLEREQUAL: printf("<= "); break;
+            case EQUAL: printf("= "); break; 
+            case NOTEQUAL: printf("<> "); break;
             case OPENBRACKET: printf("( "); break;
             case CLOSEBRACKET: printf(") "); break;
             case COMMA: printf(", "); break;
             case COLON: printf(": "); break;
             case SEMICOLON: printf("; "); break;
             case LINENO: printf("\nLNO(%d) ", scan->token->data.no); break;
-            case NUMBER: printf("INT(%d) ", scan->token->data.no); break;
+            case NUMBER: printf("NUM(%d) ", scan->token->data.no); break;
             case FLOATNUM: printf("FNO(%f) ", scan->token->data.fno); break;
-            case STRING: printf("STR(%s) ", scan->token->data.str); break;
-            case VARIABLE: printf("VAR(%c) ", scan->token->data.no + 'A'); break;
+            case STRING: printf("STR(\"%s\") ", scan->token->data.str); break;
+            case NUMVAR: printf("NUMVAR(%c) ", scan->token->data.no + 'A'); break;
             case PRINT: printf("PRINT "); break;
             case IF: printf("IF "); break;
             case THEN: printf("THEN "); break;
@@ -96,6 +99,8 @@ void dumplist(NODE *root)
             case END: printf("END "); break;
             case REM: printf("REM "); break;
             case RND: printf("RND "); break;
+            case TAB: printf("TAB"); break;
+            case INT: printf("INT"); break;
         
             default: printf("Unknown: %d ", scan->token->type); break;
         }

@@ -1,0 +1,8 @@
+100 REM test IF
+200 A = 0
+210 A = A + 1
+215 PRINT "A=";A
+220 IF A <= 4 THEN 210
+230 IF A < 10 THEN PRINT "End of Loop.": PRINT "***"
+300 PRINT "End!"
+999 END
