@@ -230,11 +230,17 @@ TOKEN *getNextToken (char **pos, int lineno)
             
             size_t len = strlen(keyword);
             if (len == 1) {
-                TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));
-                token->type = NUMVAR;
-                token->data.no = (islower(*s) ? toupper(*s) : *s) - 'A';
-                *pos = t;
-                return token;
+				TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));
+				if (*t == '$') {
+					token->type = STRVAR;
+					t++;
+				}	
+				else 
+					token->type = NUMVAR;
+					
+				token->data.no = (islower(*s) ? toupper(*s) : *s) - 'A';
+				*pos = t;
+				return token;
             }
             
             TOKEN *token = (TOKEN*)malloc(sizeof(TOKEN));

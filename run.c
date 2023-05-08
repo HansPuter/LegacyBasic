@@ -66,6 +66,25 @@ static enum TOKENDEF getTokenValue()
 }
 
 /*
+ * Get string expression
+ */
+char *getStringExpression()
+{
+	if (scan->token->type == STRVAR) {
+		char *s = svars[scan->token->data.no];
+		nextToken();
+		return s;
+	} else if (scan->token->type == STRING) {
+		char *s = scan->token->data.str;
+		nextToken();
+		return s;
+	}
+	
+	errorMsg("string expression expected");
+	return NULL;
+}
+
+/*
  * Get numerical expression
  */
 static float getNumericExpr ()
@@ -250,30 +269,53 @@ static void doGoto(NODE *tokenlist)
 static void doIf(NODE *tokenlist)
 {
     nextToken();
-    int expr1 = getNumericExpr();    
 
-    enum TOKENDEF tok = scan->token->type;
-    if (tok != GREATER && tok != SMALLER && tok != GREATEREQUAL && tok != SMALLEREQUAL && tok != EQUAL && tok != NOTEQUAL) {
-        errorMsg("operator expected");
-    }
+	if (scan->token->type == STRVAR) {
+		char *expr1 = getStringExpression();
 
-    nextToken();
-    int expr2 = getNumericExpr();    
-    
-    if (scan->token->type != THEN && scan->token->type != GOTO) {
-        errorMsg("THEN expected");
-    }
-    
-    if ((tok == GREATER && expr1 > expr2) || (tok == SMALLER && expr1 < expr2) || (tok == EQUAL && expr1 == expr2)
-            || (tok == GREATEREQUAL && expr1 >= expr2) || (tok == SMALLEREQUAL && expr1 <= expr2) || (tok == NOTEQUAL && expr1 != expr2)) {
-        if (peekToken() == NUMBER) {
-            doGoto(tokenlist);
-        } else
-            nextToken();
+		enum TOKENDEF tok = scan->token->type;
+		if (tok != EQUAL && tok != NOTEQUAL)
+			errorMsg("operator expected");
 
-        return;
-    }
+		nextToken();
+			
+		char *expr2 = getStringExpression();
+		if ((tok == EQUAL && !strcmp(expr1,expr2)) || (tok == NOTEQUAL && strcmp(expr1, expr2))) {
+			if (peekToken() == NUMBER) {
+				doGoto(tokenlist);
+			} else
+				nextToken();
 
+			return;
+		}
+		
+		errorMsg("invalid string expression ");		
+	} else {
+		int expr1 = getNumericExpr();    
+		enum TOKENDEF tok = scan->token->type;
+
+		if (tok != GREATER && tok != SMALLER && tok != GREATEREQUAL && tok != SMALLEREQUAL && tok != EQUAL && tok != NOTEQUAL) {
+			errorMsg("operator expected");
+		}
+
+		nextToken();
+		int expr2 = getNumericExpr();    
+		
+		if (scan->token->type != THEN && scan->token->type != GOTO) {
+			errorMsg("THEN expected");
+		}
+		
+		if ((tok == GREATER && expr1 > expr2) || (tok == SMALLER && expr1 < expr2) || (tok == EQUAL && expr1 == expr2)
+				|| (tok == GREATEREQUAL && expr1 >= expr2) || (tok == SMALLEREQUAL && expr1 <= expr2) || (tok == NOTEQUAL && expr1 != expr2)) {
+			if (peekToken() == NUMBER) {
+				doGoto(tokenlist);
+			} else
+				nextToken();
+
+			return;
+		}
+	}
+	
     while (scan && scan->token->type != LINENO)
         nextToken();
 }
@@ -287,21 +329,31 @@ static void doInput()
             errorMsg("semicolon expected after INPUT string");
 
         printf("%s? ", s);
+		tok = nextToken();
     }
 
-    if (peekToken() != NUMVAR)
+    if (tok->type != NUMVAR && tok->type != STRVAR)
         errorMsg("variable name expected after INPUT");
 
-    tok = nextToken();
-    while (tok->type == NUMVAR) { 
+    while (tok->type == NUMVAR || tok->type == STRVAR) { 
         char *line = NULL;
         size_t len = 0;
         getline(&line, &len, stdin);
-
-        vars[tok->data.no] = atoi(line);
-        free(line);
+		if (strlen(line) > 0)
+			line[strlen(line)-1] = '\0';
+			
+		if (tok->type == NUMVAR) {
+			vars[tok->data.no] = atoi(line);
+			free(line), line = NULL;
+		} else
+			svars[tok->data.no] = line;	
 
         tok = nextToken();
+		if (tok->type != COMMA && tok->type != COLON && tok->type != LINENO)  
+			errorMsg("next var/statement expected after INPUT string");
+        
+		if (tok->type == COMMA || tok->type == COLON)  
+			tok = nextToken();
     }
 }
 
@@ -336,9 +388,10 @@ void run(NODE *tokenlist)
 
             case LET:
                 nextToken();
-                if (scan->token->type != NUMVAR) {
+                if (scan->token->type != NUMVAR && scan->token->type != STRVAR) {
                     errorMsg("variable expected");
                 }
+            case STRVAR:
             case NUMVAR:
                 var = scan->token->data.no;
                 
@@ -348,7 +401,10 @@ void run(NODE *tokenlist)
                 }
                 
                 nextToken();
-                vars[var] = getNumericExpr ();
+                if (scan->token->type == STRING)
+					svars[var] = strdup(scan->token->data.str);
+				else 
+					vars[var] = getNumericExpr ();
                 break;
 
             case PRINT:

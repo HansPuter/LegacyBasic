@@ -87,6 +87,7 @@ void dumplist(NODE *root)
             case FLOATNUM: printf("FNO(%f) ", scan->token->data.fno); break;
             case STRING: printf("STR(\"%s\") ", scan->token->data.str); break;
             case NUMVAR: printf("NUMVAR(%c) ", scan->token->data.no + 'A'); break;
+            case STRVAR: printf("STRVAR(%c$) ", scan->token->data.no + 'A'); break;
             case PRINT: printf("PRINT "); break;
             case IF: printf("IF "); break;
             case THEN: printf("THEN "); break;
