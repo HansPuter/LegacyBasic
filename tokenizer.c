@@ -274,6 +274,10 @@ TOKEN *getNextToken (char **pos, int lineno)
             }
             else if (!strcmp(keyword, "INT"))
                 token->type = INT;
+            else if (!strcmp(keyword, "AND"))
+                token->type = AND;
+            else if (!strcmp(keyword, "OR"))
+                token->type = OR;
             else {
                 printf("error: unknown token: %s at line %d\n", keyword, lineno);
                 exit(1);

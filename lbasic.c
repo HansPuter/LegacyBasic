@@ -102,6 +102,8 @@ void dumplist(NODE *root)
             case RND: printf("RND "); break;
             case TAB: printf("TAB"); break;
             case INT: printf("INT"); break;
+            case AND: printf("AND "); break;
+            case OR:  printf("OR "); break;
         
             default: printf("Unknown: %d ", scan->token->type); break;
         }

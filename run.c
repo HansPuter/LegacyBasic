@@ -16,8 +16,9 @@
 static float getNumericValue();
 
 static NODE *scan = NULL;
-static int   vars[26];
-static char *svars[26]; 
+static float  vars[26];
+static char  *svars[26];
+static float *array[26]; 
 static int   lineno;
 
 static TOKEN *nextToken() 
@@ -291,29 +292,57 @@ static void doIf(NODE *tokenlist)
 		
 		errorMsg("invalid string expression ");		
 	} else {
-		int expr1 = getNumericExpr();    
-		enum TOKENDEF tok = scan->token->type;
+		bool evalWhole = false;
+		enum TOKENDEF evalTok = NULL;
 
-		if (tok != GREATER && tok != SMALLER && tok != GREATEREQUAL && tok != SMALLEREQUAL && tok != EQUAL && tok != NOTEQUAL) {
-			errorMsg("operator expected");
-		}
+		for ( ; ; ) {
+			int expr1 = getNumericExpr();    
+			enum TOKENDEF tok = scan->token->type;
+			bool eval = false;
+			
+			if (tok != GREATER && tok != SMALLER && tok != GREATEREQUAL && tok != SMALLEREQUAL && tok != EQUAL && tok != NOTEQUAL) {
+				errorMsg("operator expected");
+			}
 
-		nextToken();
-		int expr2 = getNumericExpr();    
-		
-		if (scan->token->type != THEN && scan->token->type != GOTO) {
-			errorMsg("THEN expected");
-		}
-		
-		if ((tok == GREATER && expr1 > expr2) || (tok == SMALLER && expr1 < expr2) || (tok == EQUAL && expr1 == expr2)
-				|| (tok == GREATEREQUAL && expr1 >= expr2) || (tok == SMALLEREQUAL && expr1 <= expr2) || (tok == NOTEQUAL && expr1 != expr2)) {
-			if (peekToken() == NUMBER) {
-				doGoto(tokenlist);
-			} else
-				nextToken();
+			nextToken();
+			int expr2 = getNumericExpr();    
+			
+			
+			if ((tok == GREATER && expr1 > expr2) || (tok == SMALLER && expr1 < expr2) || (tok == EQUAL && expr1 == expr2)
+					|| (tok == GREATEREQUAL && expr1 >= expr2) || (tok == SMALLEREQUAL && expr1 <= expr2) || (tok == NOTEQUAL && expr1 != expr2)) {
+				eval = true;
+			}
+			
+			
+			
+			if (scan->token->type == THEN || scan->token->type == GOTO) {
+				if (evalTok == NULL) {
+					evalWhole = eval;
+				} else {
+					if (evalTok == AND) {
+						if 
+						
+				}	
+				break;
+			}
+				
+			if (scan->token->type == AND)
+				evalTok = AND;
+			else if (scan->token->type == OR)
+				evalTok = OR;
+			else
+				errorMsg("AND or OR expected");
+			
+			nextToken();
 
-			return;
+				if (peekToken() == NUMBER) {
+					doGoto(tokenlist);
+				} else
+					nextToken();
+
+				return;
 		}
+			
 	}
 	
     while (scan && scan->token->type != LINENO)
